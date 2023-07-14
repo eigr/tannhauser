@@ -1,0 +1,74 @@
+FROM debian:bullseye
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# install dependencies
+RUN apt-get update \
+    && apt-get upgrade --assume-yes \
+    && apt-get install --assume-yes \
+    build-essential \
+    zlib1g-dev \
+    libncurses5-dev \
+    libssl-dev \
+    unixodbc-dev \
+    libgmp3-dev \
+    libsctp-dev \
+    lksctp-tools \
+    curl \
+    git \
+    m4 \
+    autoconf \
+    fop \
+    xsltproc \
+    libxml2-utils \
+    flex \
+    pkg-config \
+    tzdata \
+    ssh \
+    openssh-server \
+    groff-base \
+    sudo \
+    gdb \
+    tinyproxy \
+    expect \
+    python \
+    jq
+
+# install Erlang dependencies
+RUN apt-get install --assume-yes \
+    libwxgtk3.0-gtk3-dev \
+    libwxgtk-webview3.0-gtk3-dev
+
+WORKDIR /root
+
+RUN curl -O https://ziglang.org/download/0.10.1/zig-linux-x86_64-0.10.1.tar.xz
+RUN tar xf zig-linux-x86_64-0.10.1.tar.xz
+
+# setup Zig
+ENV PATH="${PATH}:/root/zig-linux-x86_64-0.10.1"
+ENV CC="zig cc" CXX="zig c++" RANLIB="zig ranlib" AR="zig ar"
+ENV CPATH=/usr/include:/root/zig-linux-x86_64-0.10.1/lib/include
+
+RUN mkdir -p /root/otp_build
+WORKDIR /root/otp_build
+RUN git clone https://github.com/erlang/otp.git
+
+WORKDIR /root/otp_build/otp
+#RUN git checkout maint
+#RUN git checkout master
+RUN git checkout maint-26
+
+# setup Erlang build environment
+ENV ERL_TOP=/root/otp_build/otp
+ENV ERLC_USE_SERVER=yes
+
+RUN ./configure \
+    --disable-jit \
+    --without-crypto \
+    --without-megaco \
+    --without-wx \
+    --without-debugger \
+    --without-observer \
+    --without-cdv \
+    --without-et
+RUN make
